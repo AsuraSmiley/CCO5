@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel - Queue System</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="container" id="adminLogin">
+  <h2>Admin Login</h2>
+  <input type="email" id="adminEmail" placeholder="Email" />
+  <input type="password" id="adminPass" placeholder="Password" />
+  <button onclick="adminLogin()">Login</button>
+</div>
+
+<div class="container hidden" id="adminPanel">
+  <h2>Admin Dashboard</h2>
+  <div id="queueList"></div>
+</div>
+
+<script type="module">
+  // Import Firebase setup
+  import { app, auth, db } from './firebase.js';
+
+  async function adminLogin() {
+    const email = document.getElementById("adminEmail").value;
+    const pass = document.getElementById("adminPass").value;
+
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      const doc = await db.collection("admins").doc(email).get();
+      if (doc.exists && doc.data().role === "admin") {
+        document.getElementById("adminLogin").classList.add("hidden");
+        document.getElementById("adminPanel").classList.remove("hidden");
+        loadQueue();
+      } else {
+        alert("Not authorized.");
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function loadQueue() {
+    const queueList = document.getElementById("queueList");
+    const snapshot = await db.collection("queue").orderBy("timestamp").get();
+
+    queueList.innerHTML = "";
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      queueList.innerHTML += `
+        <div style="border:1px solid #ccc; padding:10px; margin:10px 0;">
+          <strong>${data.queueNumber}</strong> - ${data.name} (${data.service})
+          <button onclick="removeEntry('${doc.id}')">Delete</button>
+        </div>`;
+    });
+  }
+
+  async function removeEntry(id) {
+    await db.collection("queue").doc(id).delete();
+    loadQueue();
+  }
+</script>
+
+</body>
+</html>

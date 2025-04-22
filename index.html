@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Student Queueing System</title>
+  <!-- Firebase compat version (UMD scripts) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+    .hidden { display: none; }
+    .container {
+      max-width: 400px; background: #fff; padding: 20px; margin: auto;
+      border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, button, select {
+      width: 100%; margin: 10px 0; padding: 10px; border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="loginSection">
+  <h2>Student Login</h2>
+  <input type="email" id="email" placeholder="Email" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+</div>
+
+<div class="container hidden" id="formSection">
+  <h2>Queue Form</h2>
+  <input type="text" id="name" placeholder="Full Name" />
+  <select id="service">
+    <option value="">Select Service</option>
+    <option value="Enrollment">Enrollment</option>
+    <option value="Grades">Grades Request</option>
+    <option value="Drug Test">Drug Test</option>
+  </select>
+  <button onclick="submitQueue()">Submit to Queue</button>
+</div>
+
+<div class="container hidden" id="ticketSection">
+  <h2>Queue Ticket</h2>
+  <p><strong>Name:</strong> <span id="ticketName"></span></p>
+  <p><strong>Service:</strong> <span id="ticketService"></span></p>
+  <p><strong>Queue Number:</strong> <span id="ticketNumber"></span></p>
+  <p><strong>Time:</strong> <span id="ticketTime"></span></p>
+  <button onclick="window.print()">Print Ticket</button>
+</div>
+
+<script>
+  // 🔥 Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAlq3HZwuk-wk2aFxERWWBm2rSH1eSXOoc",
+    authDomain: "student-queue-system.firebaseapp.com",
+    projectId: "student-queue-system",
+    storageBucket: "student-queue-system.firebasestorage.app",
+    messagingSenderId: "891032727765",
+    appId: "1:891032727765:web:134c260550e58a1be6325c",
+    measurementId: "G-15PJS2C6KF"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  function login() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("formSection").classList.remove("hidden");
+      })
+      .catch(error => alert("Login failed: " + error.message));
+  }
+
+  async function submitQueue() {
+    const name = document.getElementById("name").value;
+    const service = document.getElementById("service").value;
+    const time = new Date().toLocaleString();
+
+    if (!name || !service) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    const snapshot = await db.collection("queue")
+      .orderBy("timestamp", "desc")
+      .limit(1)
+      .get();
+
+    let lastNum = 0;
+    if (!snapshot.empty) {
+      const last = snapshot.docs[0].data();
+      lastNum = parseInt(last.queueNumber.replace("Q", ""));
+    }
+
+    const newNumber = "Q" + String(lastNum + 1).padStart(3, "0");
+
+    await db.collection("queue").add({
+      name,
+      service,
+      queueNumber: newNumber,
+      timestamp: new Date()
+    });
+
+    document.getElementById("formSection").classList.add("hidden");
+    document.getElementById("ticketSection").classList.remove("hidden");
+
+    document.getElementById("ticketName").innerText = name;
+    document.getElementById("ticketService").innerText = service;
+    document.getElementById("ticketNumber").innerText = newNumber;
+    document.getElementById("ticketTime").innerText = time;
+  }
+</script>
+
+</body>
+</html>
