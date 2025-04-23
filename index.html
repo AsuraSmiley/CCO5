@@ -2,7 +2,6 @@
 <html>
 <head>
   <title>Student Queueing System</title>
-  <!-- Firebase compat version (UMD scripts) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -15,6 +14,9 @@
     }
     input, button, select {
       width: 100%; margin: 10px 0; padding: 10px; border-radius: 5px;
+    }
+    .nav-buttons {
+      display: flex; justify-content: space-between;
     }
   </style>
 </head>
@@ -36,7 +38,10 @@
     <option value="Grades">Grades Request</option>
     <option value="Drug Test">Drug Test</option>
   </select>
-  <button onclick="submitQueue()">Submit to Queue</button>
+  <div class="nav-buttons">
+    <button onclick="goBack()">⬅ Back</button>
+    <button onclick="submitQueue()">Submit to Queue ➡</button>
+  </div>
 </div>
 
 <div class="container hidden" id="ticketSection">
@@ -45,11 +50,12 @@
   <p><strong>Service:</strong> <span id="ticketService"></span></p>
   <p><strong>Queue Number:</strong> <span id="ticketNumber"></span></p>
   <p><strong>Time:</strong> <span id="ticketTime"></span></p>
-  <button onclick="window.print()">Print Ticket</button>
+  <button onclick="window.print()">🖨 Print Ticket</button>
+  <button onclick="downloadTicket()">⬇ Download Ticket</button>
+  <button onclick="goBackToForm()">⬅ Back to Form</button>
 </div>
 
 <script>
-  // 🔥 Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyAlq3HZwuk-wk2aFxERWWBm2rSH1eSXOoc",
     authDomain: "student-queue-system.firebaseapp.com",
@@ -60,7 +66,6 @@
     measurementId: "G-15PJS2C6KF"
   };
 
-  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -113,6 +118,36 @@
     document.getElementById("ticketService").innerText = service;
     document.getElementById("ticketNumber").innerText = newNumber;
     document.getElementById("ticketTime").innerText = time;
+  }
+
+  function downloadTicket() {
+    const name = document.getElementById("ticketName").innerText;
+    const service = document.getElementById("ticketService").innerText;
+    const queueNumber = document.getElementById("ticketNumber").innerText;
+    const time = document.getElementById("ticketTime").innerText;
+
+    const ticketText =
+      `Queue Ticket\n` +
+      `Name: ${name}\n` +
+      `Service: ${service}\n` +
+      `Queue Number: ${queueNumber}\n` +
+      `Time: ${time}`;
+
+    const blob = new Blob([ticketText], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${queueNumber}_Ticket.txt`;
+    link.click();
+  }
+
+  function goBack() {
+    document.getElementById("formSection").classList.add("hidden");
+    document.getElementById("loginSection").classList.remove("hidden");
+  }
+
+  function goBackToForm() {
+    document.getElementById("ticketSection").classList.add("hidden");
+    document.getElementById("formSection").classList.remove("hidden");
   }
 </script>
 
