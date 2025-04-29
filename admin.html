@@ -1,69 +1,509 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Admin Panel - Queue System</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Student Queue</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="admin.css">
+  
 </head>
 <body>
+  <div class="card">
+    <div class="card-header">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+          <p class="text-sm" style="color: var(--very-light-purple);">Manage student queue</p>
+        </div>
+        <div class="badge queue-count">0 Students</div>
+      </div>
+    </div>
+    
+    <div class="card-content">
+      <div class="count-display">
+        <div class="count-card pending">
+          <div class="count-label">Pending</div>
+          <div class="count-value" id="pendingCount">0</div>
+        </div>
+        <div class="count-card done">
+          <div class="count-label">Served</div>
+          <div class="count-value" id="doneCount">0</div>
+        </div>
+        <div class="count-card">
+          <div class="count-label">Total</div>
+          <div class="count-value" id="totalCount">0</div>
+        </div>
+      </div>
+      
+      <div class="tabs">
+        <div class="tab active" data-tab="pending">Pending Queue</div>
+        <div class="tab" data-tab="done">Done</div>
+      </div>
+      
+      <div class="tab-content active" id="pendingTab">
+        <div class="queue-container">
+          <div class="queue-header">
+            <span>Current Queue</span>
+            <span class="badge queue-count">0 Students</span>
+          </div>
+          <ul id="queueList" class="m-0 p-0"></ul>
+          <div id="emptyQueue" class="empty-queue">
+            <p>No students in queue</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="tab-content" id="doneTab">
+        <div class="queue-container">
+          <div class="queue-header">
+            <span>Served Students</span>
+            <span class="badge" style="background-color: #10B981;" id="doneCountBadge">0 Students</span>
+          </div>
+          <ul id="doneList" class="m-0 p-0"></ul>
+          <div id="emptyDone" class="empty-queue">
+            <p>No students have been served yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card-footer">
+      <div class="flex gap-3">
+        <button onclick="swapFirstTwo()" class="btn btn-outline btn-outline-primary">
+          <i class="fas fa-exchange-alt"></i> Swap 1 & 2
+        </button>
+        <button onclick="serveNext()" class="btn btn-primary">
+          <i class="fas fa-chevron-right"></i> Serve Next
+        </button>
+      </div>
+      <button onclick="downloadQueue()" class="btn btn-outline btn-outline-secondary">
+        <i class="fas fa-file-excel"></i> Download as Spreadsheet
+      </button>
+    </div>
+  </div>
 
-<div class="container" id="adminLogin">
-  <h2>Admin Login</h2>
-  <input type="email" id="adminEmail" placeholder="Email" />
-  <input type="password" id="adminPass" placeholder="Password" />
-  <button onclick="adminLogin()">Login</button>
-</div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAlq3HZwuk-wk2aFxERWWBm2rSH1eSXOoc",
+      authDomain: "student-queue-system.firebaseapp.com",
+      projectId: "student-queue-system",
+      storageBucket: "student-queue-system.firebasestorage.app",
+      messagingSenderId: "891032727765",
+      appId: "1:891032727765:web:134c260550e58a1be6325c"
+    };
 
-<div class="container hidden" id="adminPanel">
-  <h2>Admin Dashboard</h2>
-  <div id="queueList"></div>
-</div>
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-<script type="module">
-  // Import Firebase setup
-  import { app, auth, db } from './firebase.js';
-
-  async function adminLogin() {
-    const email = document.getElementById("adminEmail").value;
-    const pass = document.getElementById("adminPass").value;
-
-    try {
-      await auth.signInWithEmailAndPassword(email, pass);
-      const doc = await db.collection("admins").doc(email).get();
-      if (doc.exists && doc.data().role === "admin") {
-        document.getElementById("adminLogin").classList.add("hidden");
-        document.getElementById("adminPanel").classList.remove("hidden");
-        loadQueue();
-      } else {
-        alert("Not authorized.");
-      }
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  async function loadQueue() {
+    let queueData = [];
+    let doneData = [];
+    
     const queueList = document.getElementById("queueList");
-    const snapshot = await db.collection("queue").orderBy("timestamp").get();
+    const doneList = document.getElementById("doneList");
+    const emptyQueue = document.getElementById("emptyQueue");
+    const emptyDone = document.getElementById("emptyDone");
+    const queueCountBadges = document.querySelectorAll(".queue-count");
+    const doneCountBadge = document.getElementById("doneCountBadge");
+    
+    const pendingCountEl = document.getElementById("pendingCount");
+    const doneCountEl = document.getElementById("doneCount");
+    const totalCountEl = document.getElementById("totalCount");
 
-    queueList.innerHTML = "";
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      queueList.innerHTML += `
-        <div style="border:1px solid #ccc; padding:10px; margin:10px 0;">
-          <strong>${data.queueNumber}</strong> - ${data.name} (${data.service})
-          <button onclick="removeEntry('${doc.id}')">Delete</button>
-        </div>`;
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabId = tab.getAttribute('data-tab');
+        
+        tabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        
+        tab.classList.add('active');
+        document.getElementById(tabId + 'Tab').classList.add('active');
+      });
     });
-  }
 
-  async function removeEntry(id) {
-    await db.collection("queue").doc(id).delete();
-    loadQueue();
-  }
-</script>
+    db.collection("queue").orderBy("timestamp").onSnapshot(snapshot => {
+      queueData = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        queueData.push({ id: doc.id, ...data });
+      });
+      renderQueue();
+      updateCounts();
+    });
 
+    function loadDoneData() {
+      const savedDoneData = localStorage.getItem('doneData');
+      if (savedDoneData) {
+        try {
+          doneData = JSON.parse(savedDoneData);
+          doneData = doneData.map(item => {
+            if (typeof item.timestamp === 'string') {
+              item.timestamp = {
+                toDate: () => new Date(item.timestamp)
+              };
+            }
+            if (typeof item.servedAt === 'string') {
+              item.servedAt = new Date(item.servedAt);
+            }
+            return item;
+          });
+        } catch (e) {
+          console.error("Error loading done data:", e);
+          doneData = [];
+        }
+      }
+      renderDoneList();
+      updateCounts();
+    }
+
+    function saveDoneData() {
+      const dataToSave = doneData.map(item => {
+        const newItem = {...item};
+        if (newItem.timestamp && typeof newItem.timestamp.toDate === 'function') {
+          newItem.timestamp = newItem.timestamp.toDate().toISOString();
+        }
+        if (newItem.servedAt && newItem.servedAt instanceof Date) {
+          newItem.servedAt = newItem.servedAt.toISOString();
+        }
+        return newItem;
+      });
+      
+      localStorage.setItem('doneData', JSON.stringify(dataToSave));
+    }
+
+    loadDoneData();
+
+    function renderQueue() {
+      queueList.innerHTML = "";
+      
+      queueCountBadges.forEach(badge => {
+        badge.textContent = `${queueData.length} Students`;
+      });
+      
+      if (queueData.length === 0) {
+        emptyQueue.style.display = "block";
+        return;
+      }
+      
+      emptyQueue.style.display = "none";
+      
+      queueData.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.className = "queue-item" + (index === 0 ? " active" : "");
+        li.setAttribute("data-index", index);
+        li.setAttribute("data-id", item.id);
+        li.setAttribute("data-type", "pending");
+
+        li.innerHTML = `
+          <div class="drag-handle" title="Drag to reorder">
+            <i class="fas fa-grip-vertical"></i>
+          </div>
+          <div class="queue-number">${index + 1}</div>
+          <div class="queue-details">
+            <div class="queue-name">${item.queueNumber} - ${item.name}</div>
+            <div class="queue-service">${item.service}</div>
+          </div>
+          <div class="status-badge status-pending">Pending</div>
+          <i class="fas fa-chevron-down ml-3 dropdown-arrow"></i>
+        `;
+
+        const dropdown = document.createElement("div");
+        dropdown.className = "dropdown";
+        
+        const dropdownContent = document.createElement("div");
+        dropdownContent.className = "dropdown-content";
+        
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn btn-danger";
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteQueueItem(item.id, 'pending');
+        };
+        
+        dropdownContent.appendChild(deleteBtn);
+        dropdown.appendChild(dropdownContent);
+        li.appendChild(dropdown);
+
+        li.setAttribute("draggable", "true");
+
+        li.addEventListener('click', function(e) {
+
+          if (e.target.closest('.btn-danger')) return;
+          
+          if (e.target.closest('.drag-handle')) return;
+          
+          toggleDropdown(this);
+        });
+        
+        queueList.appendChild(li);
+      });
+      
+      enableDragAndDrop();
+    }
+    
+    function renderDoneList() {
+      doneList.innerHTML = "";
+      doneCountBadge.textContent = `${doneData.length} Students`;
+      
+      if (doneData.length === 0) {
+        emptyDone.style.display = "block";
+        return;
+      }
+      
+      emptyDone.style.display = "none";
+
+      const sortedDoneData = [...doneData].sort((a, b) => {
+        return new Date(b.servedAt) - new Date(a.servedAt);
+      });
+      
+      sortedDoneData.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.className = "queue-item done-item";
+        li.setAttribute("data-index", index);
+        li.setAttribute("data-id", item.id);
+        li.setAttribute("data-type", "done");
+
+        const servedTime = new Date(item.servedAt);
+        const formattedTime = servedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const formattedDate = servedTime.toLocaleDateString();
+
+        li.innerHTML = `
+          <div class="queue-number"><i class="fas fa-check"></i></div>
+          <div class="queue-details">
+            <div class="queue-name">${item.queueNumber} - ${item.name}</div>
+            <div class="queue-service">${item.service}</div>
+            <div class="timestamp">Served: ${formattedDate} at ${formattedTime}</div>
+          </div>
+          <div class="status-badge status-done">Done</div>
+          <i class="fas fa-chevron-down ml-3 dropdown-arrow"></i>
+        `;
+
+        const dropdown = document.createElement("div");
+        dropdown.className = "dropdown";
+        
+        const dropdownContent = document.createElement("div");
+        dropdownContent.className = "dropdown-content";
+        
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn btn-danger";
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteQueueItem(item.id, 'done', index);
+        };
+        
+        dropdownContent.appendChild(deleteBtn);
+        dropdown.appendChild(dropdownContent);
+        li.appendChild(dropdown);
+ 
+        li.addEventListener('click', function(e) {
+          if (e.target.closest('.btn-danger')) return;
+          
+          toggleDropdown(this);
+        });
+        
+        doneList.appendChild(li);
+      });
+    }
+    
+    function toggleDropdown(item) {
+      document.querySelectorAll('.queue-item').forEach(el => {
+        if (el !== item) {
+          el.classList.remove('expanded');
+          const dropdown = el.querySelector('.dropdown');
+          if (dropdown) dropdown.classList.remove('open');
+          const arrow = el.querySelector('.dropdown-arrow');
+          if (arrow) arrow.classList.remove('open');
+        }
+      });
+
+      item.classList.toggle('expanded');
+      const dropdown = item.querySelector('.dropdown');
+      dropdown.classList.toggle('open');
+      const arrow = item.querySelector('.dropdown-arrow');
+      arrow.classList.toggle('open');
+    }
+    
+    function deleteQueueItem(id, type, index) {
+      if (type === 'pending') {
+        db.collection("queue").doc(id).delete()
+          .then(() => {
+            console.log("Student deleted from queue");
+          })
+          .catch(error => {
+            console.error("Error deleting student: ", error);
+            alert("Error deleting student. Please try again.");
+          });
+      } else if (type === 'done') {
+        doneData.splice(index, 1);
+        saveDoneData();
+        renderDoneList();
+        updateCounts();
+      }
+    }
+    
+    function updateCounts() {
+      pendingCountEl.textContent = queueData.length;
+      doneCountEl.textContent = doneData.length;
+      totalCountEl.textContent = queueData.length + doneData.length;
+    }
+
+    function enableDragAndDrop() {
+      let dragSrcIndex;
+      const dragHandles = queueList.querySelectorAll('.drag-handle');
+      
+      dragHandles.forEach(handle => {
+        handle.addEventListener('mousedown', e => {
+          const item = e.target.closest('li');
+          item.setAttribute('draggable', 'true');
+        });
+        
+        handle.addEventListener('mouseup', e => {
+          const item = e.target.closest('li');
+          item.setAttribute('draggable', 'false');
+        });
+      });
+      
+      queueList.querySelectorAll("li").forEach(item => {
+        item.addEventListener("dragstart", e => {
+          dragSrcIndex = parseInt(e.target.dataset.index);
+          setTimeout(() => {
+            e.target.classList.add("opacity-50");
+          }, 0);
+        });
+
+        item.addEventListener("dragend", e => {
+          e.target.classList.remove("opacity-50");
+          e.target.setAttribute('draggable', 'false');
+        });
+
+        item.addEventListener("dragover", e => {
+          e.preventDefault();
+        });
+
+        item.addEventListener("dragenter", e => {
+          e.preventDefault();
+          e.target.closest("li").classList.add("bg-gray-100");
+        });
+
+        item.addEventListener("dragleave", e => {
+          e.target.closest("li").classList.remove("bg-gray-100");
+        });
+
+        item.addEventListener("drop", e => {
+          e.preventDefault();
+          const targetItem = e.target.closest("li");
+          targetItem.classList.remove("bg-gray-100");
+          
+          const targetIndex = parseInt(targetItem.dataset.index);
+          if (dragSrcIndex === targetIndex) return;
+
+          const temp = queueData[dragSrcIndex];
+
+          queueData.splice(dragSrcIndex, 1);
+
+          queueData.splice(targetIndex, 0, temp);
+          
+          renderQueue();
+          updateCounts();
+
+        });
+      });
+    }
+
+    function swapFirstTwo() {
+      if (queueData.length < 2) {
+        alert("Need at least 2 students in queue to swap");
+        return;
+      }
+      
+      const temp = queueData[0];
+      queueData[0] = queueData[1];
+      queueData[1] = temp;
+      
+      renderQueue();
+
+    }
+
+    function serveNext() {
+      if (queueData.length === 0) {
+        alert("Queue is empty");
+        return;
+      }
+      
+      const next = queueData.shift();
+
+      next.servedAt = new Date();
+      doneData.unshift(next);
+
+      saveDoneData();
+
+      renderQueue();
+      renderDoneList();
+      updateCounts();
+
+      db.collection("queue").doc(next.id).delete()
+        .then(() => {
+          console.log("Student served and removed from queue");
+        })
+        .catch(error => {
+          console.error("Error removing student: ", error);
+          queueData.unshift(next);
+          doneData.shift();
+          saveDoneData();
+          renderQueue();
+          renderDoneList();
+          updateCounts();
+        });
+    }
+
+    function downloadQueue() {
+      if (queueData.length === 0 && doneData.length === 0) {
+        alert("Both queues are empty. Nothing to download.");
+        return;
+      }
+
+      const pendingData = queueData.map((item, index) => ({
+        Position: index + 1,
+        QueueNumber: item.queueNumber,
+        Name: item.name,
+        Service: item.service,
+        Status: "Pending",
+        Timestamp: item.timestamp.toDate().toLocaleString(),
+        ServedAt: ""
+      }));
+
+      const doneDataForExport = doneData.map((item, index) => ({
+        Position: "-",
+        QueueNumber: item.queueNumber,
+        Name: item.name,
+        Service: item.service,
+        Status: "Done",
+        Timestamp: item.timestamp.toDate ? item.timestamp.toDate().toLocaleString() : new Date(item.timestamp).toLocaleString(),
+        ServedAt: item.servedAt.toLocaleString()
+      }));
+
+      const wsData = [...pendingData, ...doneDataForExport];
+      
+      const worksheet = XLSX.utils.json_to_sheet(wsData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Queue");
+
+      const now = new Date();
+      const filename = `Student_Queue_${now.toISOString().split('T')[0]}.xlsx`;
+      
+      XLSX.writeFile(workbook, filename);
+    }
+  </script>
 </body>
 </html>

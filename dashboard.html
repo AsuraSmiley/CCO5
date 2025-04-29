@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+    .dashboard { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; }
+    h2 { text-align: center; }
+    .stats { display: flex; justify-content: space-around; margin-bottom: 20px; }
+    .queue-list { border-top: 1px solid #ccc; padding-top: 10px; }
+    .queue-item { padding: 10px; border-bottom: 1px solid #eee; }
+    .btn { padding: 10px 20px; margin: 10px; border-radius: 5px; background: #007bff; color: #fff; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="dashboard">
+  <h2>Admin Dashboard</h2>
+  <div class="stats">
+    <div><strong>Total in Queue:</strong> <span id="totalQueue">0</span></div>
+    <div><strong>Currently Serving:</strong> <span id="currentServing">None</span></div>
+  </div>
+  <button class="btn" onclick="serveNext()">Serve Next</button>
+  <div class="queue-list" id="queueList"></div>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAlq3HZwuk-wk2aFxERWWBm2rSH1eSXOoc",
+    authDomain: "student-queue-system.firebaseapp.com",
+    projectId: "student-queue-system",
+    storageBucket: "student-queue-system.firebasestorage.app",
+    messagingSenderId: "891032727765",
+    appId: "1:891032727765:web:134c260550e58a1be6325c",
+    measurementId: "G-15PJS2C6KF"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let queue = [];
+  let currentIndex = 0;
+
+  function loadQueue() {
+    db.collection("queue").orderBy("timestamp", "asc").onSnapshot(snapshot => {
+      queue = [];
+      document.getElementById("queueList").innerHTML = "";
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        queue.push({ id: doc.id, ...data });
+        const item = document.createElement("div");
+        item.className = "queue-item";
+        item.innerText = `${data.queueNumber} - ${data.name} (${data.service})`;
+        document.getElementById("queueList").appendChild(item);
+      });
+
+      document.getElementById("totalQueue").innerText = queue.length;
+      updateCurrentServing();
+    });
+  }
+
+  function serveNext() {
+    if (queue.length === 0 || currentIndex >= queue.length) {
+      alert("No more in queue.");
+      return;
+    }
+
+    const next = queue[currentIndex];
+    document.getElementById("currentServing").innerText = `${next.queueNumber} - ${next.name}`;
+    currentIndex++;
+  }
+
+  function updateCurrentServing() {
+    if (currentIndex < queue.length) {
+      const current = queue[currentIndex];
+      document.getElementById("currentServing").innerText = `${current.queueNumber} - ${current.name}`;
+    } else {
+      document.getElementById("currentServing").innerText = "None";
+    }
+  }
+
+  loadQueue();
+</script>
+</body>
+</html>

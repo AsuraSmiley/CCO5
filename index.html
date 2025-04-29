@@ -1,155 +1,483 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Queueing System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <!-- Add jsPDF for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
-    .hidden { display: none; }
+    :root {
+      --cream: #F2EFE7;
+      --light-blue: #9ACBD0;
+      --teal: #48A6A7;
+      --dark-teal: #006A71;
+      --white: #FFFFFF;
+      --gray: #F5F5F5;
+      --text: #333333;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
     .container {
-      max-width: 400px; background: #fff; padding: 20px; margin: auto;
-      border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 450px;
+      background: var(--white);
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 106, 113, 0.1);
+      transition: all 0.3s ease;
     }
-    input, button, select {
-      width: 100%; margin: 10px 0; padding: 10px; border-radius: 5px;
+    
+    h2 {
+      color: var(--dark-teal);
+      margin-bottom: 25px;
+      font-weight: 600;
+      text-align: center;
+      position: relative;
+      padding-bottom: 10px;
     }
+    
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 3px;
+      background-color: var(--teal);
+      border-radius: 3px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--dark-teal);
+      font-weight: 500;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--light-blue);
+      border-radius: 8px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      transition: all 0.3s;
+      background-color: var(--gray);
+      color: var(--text);
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(72, 166, 167, 0.2);
+    }
+    
+    button {
+      background-color: var(--teal);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 500;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin-top: 10px;
+    }
+    
+    button:hover {
+      background-color: var(--dark-teal);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 106, 113, 0.2);
+    }
+    
     .nav-buttons {
-      display: flex; justify-content: space-between;
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .nav-buttons button {
+      flex: 1;
+    }
+    
+    .back-btn {
+      background-color: var(--light-blue);
+    }
+    
+    .back-btn:hover {
+      background-color: #7fb8c0;
+    }
+    
+    .ticket-info {
+      background-color: var(--gray);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      border-left: 4px solid var(--teal);
+    }
+    
+    .ticket-info p {
+      margin: 10px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .ticket-info p strong {
+      color: var(--dark-teal);
+    }
+    
+    .ticket-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--dark-teal);
+      text-align: center;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: var(--cream);
+      border-radius: 8px;
+    }
+    
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .action-buttons button {
+      margin-top: 0;
+    }
+    
+    .full-width {
+      grid-column: span 2;
+    }
+    
+    .icon {
+      margin-right: 8px;
+    }
+    
+    /* Print styles - only show ticket information when printing */
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+        margin: 0;
+      }
+      
+      .container {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      
+      .action-buttons, 
+      .back-btn, 
+      button {
+        display: none !important;
+      }
+      
+      .ticket-info {
+        border: none;
+        padding: 10px 0;
+        background: none;
+      }
+      
+      .printable-ticket {
+        display: block !important;
+      }
+      
+      .non-printable {
+        display: none !important;
+      }
+    }
+
+    .printable-ticket {
+      display: none;
+      padding: 20px;
+      border: 2px dashed var(--teal);
+      margin: 20px 0;
+      text-align: center;
+    }
+    
+    .printable-ticket h3 {
+      margin-bottom: 15px;
+      color: var(--dark-teal);
+    }
+    
+    .printable-ticket .ticket-number {
+      font-size: 32px;
+      margin: 15px 0;
+    }
+    
+    .printable-ticket p {
+      margin: 8px 0;
     }
   </style>
 </head>
 <body>
 
-<div class="container" id="loginSection">
-  <h2>Student Login</h2>
-  <input type="email" id="email" placeholder="Email" />
-  <input type="password" id="password" placeholder="Password" />
-  <button onclick="login()">Login</button>
-</div>
-
-<div class="container hidden" id="formSection">
-  <h2>Queue Form</h2>
-  <input type="text" id="name" placeholder="Full Name" />
-  <select id="service">
-    <option value="">Select Service</option>
-    <option value="Enrollment">Enrollment</option>
-    <option value="Grades">Grades Request</option>
-    <option value="Drug Test">Drug Test</option>
-  </select>
-  <div class="nav-buttons">
-    <button onclick="goBack()">⬅ Back</button>
-    <button onclick="submitQueue()">Submit to Queue ➡</button>
+  <div class="container" id="loginSection">
+    <h2>Student Login</h2>
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" placeholder="Enter your email" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter your password" />
+    </div>
+    <button onclick="login()">Sign In</button>
+    <button class="back-btn" onclick="showSignup()">Sign Up</button>
   </div>
-</div>
-
-<div class="container hidden" id="ticketSection">
-  <h2>Queue Ticket</h2>
-  <p><strong>Name:</strong> <span id="ticketName"></span></p>
-  <p><strong>Service:</strong> <span id="ticketService"></span></p>
-  <p><strong>Queue Number:</strong> <span id="ticketNumber"></span></p>
-  <p><strong>Time:</strong> <span id="ticketTime"></span></p>
-  <button onclick="window.print()">🖨 Print Ticket</button>
-  <button onclick="downloadTicket()">⬇ Download Ticket</button>
-  <button onclick="goBackToForm()">⬅ Back to Form</button>
-</div>
-
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAlq3HZwuk-wk2aFxERWWBm2rSH1eSXOoc",
-    authDomain: "student-queue-system.firebaseapp.com",
-    projectId: "student-queue-system",
-    storageBucket: "student-queue-system.firebasestorage.app",
-    messagingSenderId: "891032727765",
-    appId: "1:891032727765:web:134c260550e58a1be6325c",
-    measurementId: "G-15PJS2C6KF"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-
-  function login() {
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
-    auth.signInWithEmailAndPassword(email, password)
-      .then(() => {
-        document.getElementById("loginSection").classList.add("hidden");
-        document.getElementById("formSection").classList.remove("hidden");
-      })
-      .catch(error => alert("Login failed: " + error.message));
-  }
-
-  async function submitQueue() {
-    const name = document.getElementById("name").value;
-    const service = document.getElementById("service").value;
-    const time = new Date().toLocaleString();
-
-    if (!name || !service) {
-      alert("Please fill in all fields.");
-      return;
+  
+  <div class="container hidden" id="signupSection">
+    <h2>Student Sign Up</h2>
+    <div class="form-group">
+      <label for="signupEmail">Email Address</label>
+      <input type="email" id="signupEmail" placeholder="Enter your email" />
+    </div>
+    <div class="form-group">
+      <label for="signupPassword">Password</label>
+      <input type="password" id="signupPassword" placeholder="Enter your password" />
+    </div>
+    <div class="form-group">
+      <label for="confirmPassword">Confirm Password</label>
+      <input type="password" id="confirmPassword" placeholder="Confirm your password" />
+    </div>
+    <button onclick="signUp()">Register</button>
+    <button class="back-btn" onclick="showLogin()">Back to Login</button>
+  </div>
+  
+  <div class="container hidden" id="formSection">
+    <h2>Queue Registration</h2>
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input type="text" id="name" placeholder="Enter your full name" />
+    </div>
+    <div class="form-group">
+      <label for="service">Service Required</label>
+      <select id="service">
+        <option value="">Select a service</option>
+        <option value="Enrollment">Enrollment</option>
+        <option value="Grades">Grades Request</option>
+        <option value="Drug Test">Drug Test</option>
+      </select>
+    </div>
+    <div class="nav-buttons">
+      <button class="back-btn" onclick="goBack()"><span class="icon">←</span> Back</button>
+      <button onclick="submitQueue()">Submit <span class="icon">→</span></button>
+    </div>
+  </div>
+  
+  <div class="container hidden" id="ticketSection">
+    <div class="non-printable">
+      <h2>Your Queue Ticket</h2>
+      <div class="ticket-number" id="ticketNumber">Q001</div>
+      <div class="ticket-info">
+        <p><strong>Name:</strong> <span id="ticketName"></span></p>
+        <p><strong>Service:</strong> <span id="ticketService"></span></p>
+        <p><strong>Time:</strong> <span id="ticketTime"></span></p>
+      </div>
+      <div class="action-buttons">
+        <button onclick="printTicket()"><span class="icon">🖨️</span> Print</button>
+        <button onclick="downloadPDF()"><span class="icon">⬇️</span> Download PDF</button>
+        <button class="back-btn full-width" onclick="goBackToForm()"><span class="icon">←</span> Back to Form</button>
+      </div>
+    </div>
+  
+    <div class="printable-ticket" id="printableTicket">
+      <h3>Student Queue Ticket</h3>
+      <div class="ticket-number" id="printTicketNumber">Q001</div>
+      <p><strong>Name:</strong> <span id="printTicketName"></span></p>
+      <p><strong>Service:</strong> <span id="printTicketService"></span></p>
+      <p><strong>Time:</strong> <span id="printTicketTime"></span></p>
+    </div>
+  </div>
+  
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAlq3HZwuk-wk2aFxERWWBm2rSH1eSXOoc",
+      authDomain: "student-queue-system.firebaseapp.com",
+      projectId: "student-queue-system",
+      storageBucket: "student-queue-system.firebasestorage.app",
+      messagingSenderId: "891032727765",
+      appId: "1:891032727765:web:134c260550e58a1be6325c",
+      measurementId: "G-15PJS2C6KF"
+    };
+  
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+  
+    function signUp() {
+      const email = document.getElementById("signupEmail").value.trim();
+      const password = document.getElementById("signupPassword").value.trim();
+      const confirmPassword = document.getElementById("confirmPassword").value.trim();
+  
+      if (!email || !password || !confirmPassword) {
+        alert("Please fill out all fields.");
+        return;
+      }
+  
+      if (password !== confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+      }
+  
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          alert("Sign up successful. You can now log in.");
+          showLogin();
+        })
+        .catch(error => alert("Error signing up: " + error.message));
     }
-
-    const snapshot = await db.collection("queue")
-      .orderBy("timestamp", "desc")
-      .limit(1)
-      .get();
-
-    let lastNum = 0;
-    if (!snapshot.empty) {
-      const last = snapshot.docs[0].data();
-      lastNum = parseInt(last.queueNumber.replace("Q", ""));
+  
+    function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+  
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => {
+          document.getElementById("loginSection").classList.add("hidden");
+          document.getElementById("formSection").classList.remove("hidden");
+        })
+        .catch(error => alert("Login failed: " + error.message));
     }
-
-    const newNumber = "Q" + String(lastNum + 1).padStart(3, "0");
-
-    await db.collection("queue").add({
-      name,
-      service,
-      queueNumber: newNumber,
-      timestamp: new Date()
-    });
-
-    document.getElementById("formSection").classList.add("hidden");
-    document.getElementById("ticketSection").classList.remove("hidden");
-
-    document.getElementById("ticketName").innerText = name;
-    document.getElementById("ticketService").innerText = service;
-    document.getElementById("ticketNumber").innerText = newNumber;
-    document.getElementById("ticketTime").innerText = time;
-  }
-
-  function downloadTicket() {
-    const name = document.getElementById("ticketName").innerText;
-    const service = document.getElementById("ticketService").innerText;
-    const queueNumber = document.getElementById("ticketNumber").innerText;
-    const time = document.getElementById("ticketTime").innerText;
-
-    const ticketText =
-      `Queue Ticket\n` +
-      `Name: ${name}\n` +
-      `Service: ${service}\n` +
-      `Queue Number: ${queueNumber}\n` +
-      `Time: ${time}`;
-
-    const blob = new Blob([ticketText], { type: "text/plain" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${queueNumber}_Ticket.txt`;
-    link.click();
-  }
-
-  function goBack() {
-    document.getElementById("formSection").classList.add("hidden");
-    document.getElementById("loginSection").classList.remove("hidden");
-  }
-
-  function goBackToForm() {
-    document.getElementById("ticketSection").classList.add("hidden");
-    document.getElementById("formSection").classList.remove("hidden");
-  }
-</script>
-
-</body>
-</html>
+  
+    async function submitQueue() {
+      const name = document.getElementById("name").value;
+      const service = document.getElementById("service").value;
+      const time = new Date().toLocaleString();
+  
+      if (!name || !service) {
+        alert("Please fill in all fields.");
+        return;
+      }
+  
+      const snapshot = await db.collection("queue").orderBy("timestamp", "desc").limit(1).get();
+  
+      let lastNum = 0;
+      if (!snapshot.empty) {
+        const last = snapshot.docs[0].data();
+        lastNum = parseInt(last.queueNumber.replace("Q", ""));
+      }
+  
+      const newNumber = "Q" + String(lastNum + 1).padStart(3, "0");
+  
+      await db.collection("queue").add({
+        name,
+        service,
+        queueNumber: newNumber,
+        timestamp: new Date()
+      });
+  
+      document.getElementById("formSection").classList.add("hidden");
+      document.getElementById("ticketSection").classList.remove("hidden");
+  
+      document.getElementById("ticketName").innerText = name;
+      document.getElementById("ticketService").innerText = service;
+      document.getElementById("ticketNumber").innerText = newNumber;
+      document.getElementById("ticketTime").innerText = time;
+  
+      document.getElementById("printTicketName").innerText = name;
+      document.getElementById("printTicketService").innerText = service;
+      document.getElementById("printTicketNumber").innerText = newNumber;
+      document.getElementById("printTicketTime").innerText = time;
+    }
+  
+    function printTicket() {
+      window.print();
+    }
+  
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a5" });
+  
+      const queueNumber = document.getElementById("ticketNumber").innerText;
+      const name = document.getElementById("ticketName").innerText;
+      const service = document.getElementById("ticketService").innerText;
+      const time = document.getElementById("ticketTime").innerText;
+  
+      doc.setFontSize(22);
+      doc.setTextColor(0, 106, 113);
+      doc.text("Student Queue Ticket", 105, 20, { align: "center" });
+  
+      doc.setFontSize(32);
+      doc.setTextColor(72, 166, 167);
+      doc.text(queueNumber, 105, 40, { align: "center" });
+  
+      doc.setFontSize(14);
+      doc.setTextColor(51, 51, 51);
+      doc.text(`Name: ${name}`, 20, 60);
+      doc.text(`Service: ${service}`, 20, 70);
+      doc.text(`Time: ${time}`, 20, 80);
+  
+      doc.setDrawColor(72, 166, 167);
+      doc.setLineWidth(0.5);
+      doc.rect(10, 10, 128, 80);
+  
+      doc.save(`${queueNumber}_Ticket.pdf`);
+    }
+  
+    function showSignup() {
+      document.getElementById("loginSection").classList.add("hidden");
+      document.getElementById("signupSection").classList.remove("hidden");
+    }
+  
+    function showLogin() {
+      document.getElementById("signupSection").classList.add("hidden");
+      document.getElementById("loginSection").classList.remove("hidden");
+    }
+  
+    function goBack() {
+      document.getElementById("formSection").classList.add("hidden");
+      document.getElementById("loginSection").classList.remove("hidden");
+    }
+  
+    function goBackToForm() {
+      document.getElementById("ticketSection").classList.add("hidden");
+      document.getElementById("formSection").classList.remove("hidden");
+    }
+  </script>
+  
+  </body>
+  </html>
